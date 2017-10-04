@@ -1,36 +1,74 @@
 package com.kafka.api.kafkastreaming;
 
-import java.util.Properties;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
-import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.streams.KafkaStreams;
-import org.apache.kafka.streams.StreamsConfig;
-import org.apache.kafka.streams.kstream.ForeachAction;
-import org.apache.kafka.streams.kstream.KStream;
-import org.apache.kafka.streams.kstream.KStreamBuilder;
+import org.apache.kafka.clients.producer.ProducerRecord;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.kafka.api.models.Person;
+import com.kafka.api.utilities.ConsumerUtilities;
+import com.kafka.api.utilities.ProducerUtilities;
 
 public class MainApp {
 	
-	public static void main(String[] args) {
+	private static ProducerUtilities producerutility = new ProducerUtilities();
+	
+	public static void main(String[] args) throws IOException {
+	
 		
-		Properties configs = new Properties();
-		configs.put(StreamsConfig.APPLICATION_ID_CONFIG, "Kafka test application");
-		configs.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-		configs.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
-		configs.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass());
-		
-		KStreamBuilder builder = new KStreamBuilder();
-		KStream<String,String> kStream = builder.stream("test");
-		kStream.foreach(new ForeachAction<String, String>() {
+	    final Thread producer = new Thread(new Runnable(){
+	    	
+	    	 org.apache.kafka.clients.producer.Producer<String, JsonNode> producer = ProducerUtilities.getProducer();
+	    	
+	    	@Override
+	    	public void run() {
+	    		List<Person> listofpersons = new ArrayList<Person>();
+	    		ClassLoader classloader = new MainApp().getClass().getClassLoader();
+	    		File file = new File(classloader.getResource("MOCK_DATA.csv").getFile());
+	    		try{
+	    		@SuppressWarnings("resource")
+	    		BufferedReader br = new BufferedReader(new FileReader(file));
+	    		String line = " ";
+	    		while((line = br.readLine())!= null){
+	    			String[] persons = line.split(",");
+	    			Person person = new Person();
+	    			person.setName(persons[0]);
+	    			person.setPersonalID(persons[1]);
+	    			person.setCountry(persons[2]);
+	    			person.setOccupation(persons[3]);
+	    			listofpersons.add(person);
+	    		}
+	    		
+	    		for(Person person : listofpersons){
+	    			System.out.println("pushing record to the kafka producer");
+	    			ProducerRecord<String, JsonNode> record = producerutility.createRecord(person);
+	    			producer.send(record);
+	    		}
+	    		}catch(Exception e){
+	    			e.printStackTrace();
+	    		}
+	    		
+	    	}
+	    });
+	    
+	    producer.start();
+		 
+		Thread consumer = new Thread(new Runnable(){
 			@Override
-			public void apply(String key, String value) {
-				System.out.println(key + " : "+ value);				
+			public void run() {
+				ConsumerUtilities.printStreamData();	
 			}
 		});
 		
-		KafkaStreams kafkaStreams = new KafkaStreams(builder,configs);
-		kafkaStreams.start();
-
+		consumer.start();
+		
+		
+		
 	}
 
 }
