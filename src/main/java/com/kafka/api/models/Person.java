@@ -1,7 +1,18 @@
 package com.kafka.api.models;
 
-public class Person {
+import java.io.Serializable;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonRootName;
+
+@JsonRootName("person")
+public class Person implements Serializable {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 	private String name;
 	private String personalID;
 	private String country;
@@ -9,6 +20,15 @@ public class Person {
 
 	public Person() {
 
+	}
+	
+	@JsonCreator
+	public Person(@JsonProperty("name") String name,@JsonProperty("personalID") String personalID,
+			@JsonProperty("country") String country,@JsonProperty("occupation") String occupation){
+		this.name= name;
+		this.personalID = personalID;
+		this.country = country;
+		this.occupation = occupation;
 	}
 
 	public String getName() {
